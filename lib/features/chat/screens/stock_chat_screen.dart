@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/app_disclaimers.dart';
 import '../../../core/services/app_error.dart';
 import '../../../core/services/stock_chat_ai_service.dart';
 import '../../../core/theme/app_colors.dart';
@@ -254,7 +255,7 @@ class _ConsentCard extends StatelessWidget {
                     Text('AI consent required', style: AppTypography.headline),
                     const SizedBox(height: AppSpacing.micro),
                     Text(
-                      'Enable AI data consent to send chat questions to Google Gemini.',
+                      AppDisclaimers.aiChatConsentNotice,
                       style: AppTypography.footnote,
                     ),
                   ],

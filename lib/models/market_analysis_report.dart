@@ -1,6 +1,7 @@
 import 'analysis_request.dart';
 import 'analyst_output.dart';
 import 'asset_model.dart';
+import '../core/app_disclaimers.dart';
 
 class MarketAnalysisReport {
   const MarketAnalysisReport({
@@ -117,7 +118,7 @@ class MarketAnalysisReport {
 }
 
 const defaultReportDisclaimer =
-    'Experts does not provide financial advice, trading recommendations, or guarantees of future performance.';
+    AppDisclaimers.reportNotice;
 
 Map<String, dynamic> _readMap(Object? value) {
   if (value is Map<String, dynamic>) return value;

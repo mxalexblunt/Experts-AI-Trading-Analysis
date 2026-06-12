@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/app_disclaimers.dart';
 import '../../../core/services/app_error.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radii.dart';
@@ -180,15 +183,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required bool isTwelveDataConfigured,
   }) {
     if (isFinnhubConfigured && isTwelveDataConfigured) {
-      return 'Finnhub powers search, quotes, and news. Twelve Data powers chart history.';
+      return AppDisclaimers.marketDataApiNotice;
     }
     if (isFinnhubConfigured) {
-      return 'Finnhub is connected. Add a Twelve Data API key to enable chart history.';
+      return 'Finnhub API is connected. Add a Twelve Data API key to enable chart history. Experts is not affiliated with either provider.';
     }
     if (isTwelveDataConfigured) {
-      return 'Twelve Data is connected. Add a Finnhub API key to enable search, quotes, and news.';
+      return 'Twelve Data API is connected. Add a Finnhub API key to enable search, quotes, and news. Experts is not affiliated with either provider.';
     }
-    return 'Add Finnhub and Twelve Data API keys to enable full market data.';
+    return 'Add Finnhub and Twelve Data API keys to enable full market data. Experts uses their APIs and is not affiliated with either provider.';
   }
 
   void _openTypedSymbol(String value) {
@@ -460,9 +463,9 @@ class _WatchlistPreview extends StatelessWidget {
         const SizedBox(height: AppSpacing.small),
         if (assets.isEmpty)
           const EmptyState(
-            icon: CupertinoIcons.star,
+            icon: CupertinoIcons.heart,
             title: 'No saved assets yet',
-            message: 'Open an asset and tap the star to save it.',
+            message: 'Open an asset and tap the heart to save it.',
           )
         else
           _AssetList(assets: assets, onAssetSelected: onAssetSelected),
@@ -552,14 +555,24 @@ class _AssetList extends StatelessWidget {
   }
 }
 
-class _AssetReferenceCard extends StatelessWidget {
+class _AssetReferenceCard extends ConsumerWidget {
   const _AssetReferenceCard({required this.asset, required this.onPressed});
 
   final AssetModel asset;
   final ValueChanged<AssetModel> onPressed;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final chart = ref.watch(
+      chartDataProvider(
+        ChartDataQuery(symbol: asset.symbol, timeframe: '1M'),
+      ),
+    );
+    final normalizedSymbol = asset.symbol.trim().toUpperCase();
+    final isSaved = ref.watch(watchlistProvider).any(
+          (item) => item.symbol == normalizedSymbol,
+        );
+
     return AppCard(
       onPressed: () => onPressed(asset),
       padding: const EdgeInsets.all(AppSpacing.medium),
@@ -568,7 +581,13 @@ class _AssetReferenceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _AssetVisualPanel(asset: asset),
+          _AssetVisualPanel(
+            asset: asset,
+            chart: chart,
+            isSaved: isSaved,
+            onFavoritePressed: () =>
+                ref.read(watchlistProvider.notifier).toggleAsset(asset),
+          ),
           const SizedBox(height: AppSpacing.medium),
           Text(
             asset.symbol,
@@ -667,16 +686,39 @@ class _AssetReferenceCard extends StatelessWidget {
 }
 
 class _AssetVisualPanel extends StatelessWidget {
-  const _AssetVisualPanel({required this.asset});
+  const _AssetVisualPanel({
+    required this.asset,
+    required this.chart,
+    required this.isSaved,
+    required this.onFavoritePressed,
+  });
 
   final AssetModel asset;
+  final AsyncValue<List<ChartPointModel>> chart;
+  final bool isSaved;
+  final VoidCallback onFavoritePressed;
 
   @override
   Widget build(BuildContext context) {
+    final points = chart.valueOrNull ?? const <ChartPointModel>[];
+    final stats = points.length >= 2 ? _HomeChartStats.from(points) : null;
+    final chartColor = stats == null
+        ? AppColors.primary
+        : stats.change >= 0
+            ? AppColors.tradingUp
+            : AppColors.tradingDown;
+
     return Container(
-      height: 132,
+      height: 148,
       decoration: BoxDecoration(
-        color: AppColors.logoTile,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.logoTile,
+            Color(0xFF1B2432),
+          ],
+        ),
         borderRadius: BorderRadius.circular(28),
       ),
       clipBehavior: Clip.antiAlias,
@@ -685,11 +727,28 @@ class _AssetVisualPanel extends StatelessWidget {
         children: [
           CustomPaint(
             painter: _HomeChartBackdropPainter(
-              lineColor: AppColors.primary.withValues(alpha: 0.85),
-              fillColor: AppColors.canvasPure.withValues(alpha: 0.04),
+              lineColor: stats == null
+                  ? AppColors.primary.withValues(alpha: 0.85)
+                  : AppColors.canvasPure.withValues(alpha: 0.08),
+              fillColor: stats == null
+                  ? AppColors.canvasPure.withValues(alpha: 0.04)
+                  : AppColors.canvasPure.withValues(alpha: 0.01),
               gridColor: AppColors.canvasPure.withValues(alpha: 0.08),
             ),
           ),
+          if (stats != null)
+            Positioned.fill(
+              left: AppSpacing.small,
+              top: 32,
+              right: AppSpacing.small,
+              bottom: 26,
+              child: CustomPaint(
+                painter: _HomeSparklinePainter(
+                  points: points,
+                  color: chartColor,
+                ),
+              ),
+            ),
           Positioned(
             left: AppSpacing.medium,
             top: AppSpacing.medium,
@@ -704,21 +763,9 @@ class _AssetVisualPanel extends StatelessWidget {
           Positioned(
             right: AppSpacing.medium,
             top: AppSpacing.medium,
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.canvasPure.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(AppRadii.pill),
-                border: Border.all(
-                  color: AppColors.canvasPure.withValues(alpha: 0.18),
-                ),
-              ),
-              child: const Icon(
-                CupertinoIcons.heart,
-                color: AppColors.canvasPure,
-                size: 22,
-              ),
+            child: _AssetFavoriteButton(
+              isSaved: isSaved,
+              onPressed: onFavoritePressed,
             ),
           ),
           Positioned(
@@ -727,6 +774,7 @@ class _AssetVisualPanel extends StatelessWidget {
             bottom: AppSpacing.medium,
             child: Row(
               children: [
+                _VisualBadge(label: _chartBadgeLabel(stats)),
                 const Spacer(),
                 _VisualBadge(label: _visualBadgeLabel(asset.type)),
               ],
@@ -737,12 +785,85 @@ class _AssetVisualPanel extends StatelessWidget {
     );
   }
 
+  String _chartBadgeLabel(_HomeChartStats? stats) {
+    if (stats != null) {
+      final sign = stats.changePercent > 0 ? '+' : '';
+      return '1M $sign${stats.changePercent.toStringAsFixed(2)}%';
+    }
+    if (chart.isLoading) return 'Loading chart';
+    return 'Chart pending';
+  }
+
   String _visualBadgeLabel(AssetType type) {
     return switch (type) {
       AssetType.stock => 'Equity',
       AssetType.etf => 'Fund',
       AssetType.unknown => 'Watch',
     };
+  }
+}
+
+class _AssetFavoriteButton extends StatelessWidget {
+  const _AssetFavoriteButton({
+    required this.isSaved,
+    required this.onPressed,
+  });
+
+  final bool isSaved;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      minimumSize: Size.zero,
+      pressedOpacity: 0.72,
+      onPressed: onPressed,
+      child: AnimatedContainer(
+        duration: AppMotion.fast,
+        curve: AppMotion.curve,
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: isSaved
+              ? AppColors.primary
+              : AppColors.canvasPure.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(AppRadii.pill),
+          border: Border.all(
+            color: isSaved
+                ? AppColors.primary
+                : AppColors.canvasPure.withValues(alpha: 0.18),
+          ),
+        ),
+        child: Icon(
+          isSaved ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
+          color: isSaved ? AppColors.logoTile : AppColors.canvasPure,
+          size: 22,
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeChartStats {
+  const _HomeChartStats({
+    required this.change,
+    required this.changePercent,
+  });
+
+  final double change;
+  final double changePercent;
+
+  factory _HomeChartStats.from(List<ChartPointModel> points) {
+    final closes = [for (final point in points) point.close];
+    final first = closes.first;
+    final last = closes.last;
+    final change = last - first;
+
+    return _HomeChartStats(
+      change: change,
+      changePercent: first == 0 ? 0 : change / first * 100,
+    );
   }
 }
 
@@ -818,6 +939,93 @@ class _VisualBadge extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _HomeSparklinePainter extends CustomPainter {
+  const _HomeSparklinePainter({
+    required this.points,
+    required this.color,
+  });
+
+  final List<ChartPointModel> points;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (points.length < 2) return;
+
+    final closes = [for (final point in points) point.close];
+    final low = closes.reduce(math.min);
+    final high = closes.reduce(math.max);
+    final range = math.max(high - low, math.max(closes.last.abs() * 0.01, 1));
+    final topPadding = size.height * 0.08;
+    final bottomPadding = size.height * 0.1;
+    final chartHeight = math.max(size.height - topPadding - bottomPadding, 1.0);
+    final xStep = points.length == 1 ? 0.0 : size.width / (points.length - 1);
+    final path = Path();
+
+    for (var index = 0; index < points.length; index++) {
+      final x = xStep * index;
+      final normalized = (points[index].close - low) / range;
+      final y = topPadding + (1 - normalized) * chartHeight;
+      if (index == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    final fillPath = Path.from(path)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+
+    canvas.drawPath(
+      fillPath,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            color.withValues(alpha: 0.24),
+            color.withValues(alpha: 0.02),
+          ],
+        ).createShader(Offset.zero & size),
+    );
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..strokeWidth = 3
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+
+    final last = points.last.close;
+    final normalized = (last - low) / range;
+    final lastPoint = Offset(
+      size.width,
+      topPadding + (1 - normalized) * chartHeight,
+    );
+    canvas
+      ..drawCircle(
+        lastPoint,
+        5.5,
+        Paint()..color = AppColors.logoTile.withValues(alpha: 0.9),
+      )
+      ..drawCircle(
+        lastPoint,
+        3.5,
+        Paint()..color = color,
+      );
+  }
+
+  @override
+  bool shouldRepaint(covariant _HomeSparklinePainter oldDelegate) {
+    return points != oldDelegate.points || color != oldDelegate.color;
   }
 }
 

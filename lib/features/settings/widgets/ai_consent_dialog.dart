@@ -1,5 +1,33 @@
 import 'package:flutter/cupertino.dart';
 
+import '../../../core/app_disclaimers.dart';
+
+Future<bool> showAiAnalysisDisclaimerDialog(BuildContext context) async {
+  final result = await showCupertinoDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) {
+      return CupertinoAlertDialog(
+        title: const Text('AI Analysis Disclaimer'),
+        content: const Text(AppDisclaimers.aiAnalysisDisclaimerNotice),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(true),
+            child: const Text('Continue'),
+          ),
+        ],
+      );
+    },
+  );
+
+  return result ?? false;
+}
+
 Future<bool> showAiConsentDialog(BuildContext context) async {
   final result = await showCupertinoDialog<bool>(
     context: context,
@@ -7,12 +35,7 @@ Future<bool> showAiConsentDialog(BuildContext context) async {
     builder: (context) {
       return CupertinoAlertDialog(
         title: const Text('AI Data Usage'),
-        content: const Text(
-          'Experts uses Google Gemini to generate educational market analysis. '
-          'The app may send the selected ticker, market data, news summaries, '
-          'your optional note, and uploaded chart images. Your name is not sent. '
-          'Data is processed by Google Gemini, and you can revoke consent in Settings.',
-        ),
+        content: const Text(AppDisclaimers.aiConsentNotice),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),

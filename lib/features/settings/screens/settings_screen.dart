@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/app_disclaimers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
@@ -73,14 +74,19 @@ class SettingsScreen extends ConsumerWidget {
                     children: [
                       _SettingsRow(
                         title: 'Market Data',
-                        subtitle: 'Finnhub powers search, quotes, and news.',
+                        subtitle:
+                            'Finnhub API provides search, quotes, and news.',
                         value: isFinnhubConfigured ? 'Connected' : 'Pending key',
                       ),
                       _SettingsRow(
                         title: 'Chart Data',
-                        subtitle: 'Twelve Data powers chart history.',
+                        subtitle: 'Twelve Data API provides chart history.',
                         value:
                             isTwelveDataConfigured ? 'Connected' : 'Pending key',
+                      ),
+                      const _NoticeRow(
+                        title: 'Third-party API notice',
+                        message: AppDisclaimers.thirdPartyApiNotice,
                       ),
                     ],
                   ),
@@ -172,6 +178,52 @@ class SettingsScreen extends ConsumerWidget {
       CupertinoPageRoute<void>(
         settings: const RouteSettings(name: 'AiReportScreen.debug'),
         builder: (_) => AiReportScreen(asset: report.asset),
+      ),
+    );
+  }
+}
+
+class _NoticeRow extends StatelessWidget {
+  const _NoticeRow({
+    required this.title,
+    required this.message,
+  });
+
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.medium),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: AppColors.info.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              CupertinoIcons.info,
+              color: AppColors.info,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.small),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: AppTypography.headline),
+                const SizedBox(height: AppSpacing.micro),
+                Text(message, style: AppTypography.footnote),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

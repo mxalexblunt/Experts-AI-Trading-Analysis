@@ -15,6 +15,8 @@ Experts is a light-only iOS Flutter app for educational US stock and ETF analysi
 
 The MVP has a Finnhub key configured for local development. Runtime defines can still override API keys when needed.
 
+Experts is not affiliated with, endorsed by, or sponsored by Finnhub, Twelve Data, or Google Gemini. The app uses third-party APIs from these providers to retrieve market information and generate educational AI analysis.
+
 ```sh
 flutter run \
   --dart-define=GOOGLE_API_KEY=your_gemini_key \

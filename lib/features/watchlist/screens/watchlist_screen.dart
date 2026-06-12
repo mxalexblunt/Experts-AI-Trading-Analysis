@@ -55,7 +55,7 @@ class WatchlistScreen extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.small),
                   if (items.isEmpty)
                     const EmptyState(
-                      icon: CupertinoIcons.star,
+                      icon: CupertinoIcons.heart,
                       title: 'No saved assets yet',
                       message:
                           'Search for a stock or ETF, then save it here for faster access.',

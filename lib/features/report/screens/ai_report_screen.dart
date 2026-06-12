@@ -12,11 +12,11 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/animated_number_text.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/asset_logo_tile.dart';
 import '../../../core/widgets/app_motion.dart';
+import '../../../core/widgets/asset_logo_tile.dart';
+import '../../../features/shared/widgets/app_status_card.dart';
 import '../../../models/models.dart';
 import '../../../providers/providers.dart';
-import '../../../features/shared/widgets/app_status_card.dart';
 
 class AiReportScreen extends ConsumerWidget {
   const AiReportScreen({super.key, required this.asset});
@@ -39,19 +39,13 @@ class AiReportScreen extends ConsumerWidget {
                 minimumSize: Size.zero,
                 pressedOpacity: 0.62,
                 onPressed: () {
-                  final report = ref
-                      .read(marketAnalysisProvider.notifier)
-                      .showNextDebugReport();
-                  ref
-                      .read(analysisDraftProvider.notifier)
-                      .startFromAsset(report.asset);
+                  final report = ref.read(marketAnalysisProvider.notifier).showNextDebugReport();
+                  ref.read(analysisDraftProvider.notifier).startFromAsset(report.asset);
                 },
                 child: Text('AI Report', style: AppTypography.headline),
               )
             : Text('AI Report', style: AppTypography.headline),
-        trailing: currentReport == null
-            ? null
-            : _ReportNavActions(report: currentReport),
+        trailing: currentReport == null ? null : _ReportNavActions(report: currentReport),
       ),
       child: SafeArea(
         top: false,
@@ -166,9 +160,7 @@ void _copyReportSummary(MarketAnalysisReport report) {
 }
 
 void _copyReportRisks(MarketAnalysisReport report) {
-  final risks = report.keyRisks.isNotEmpty
-      ? report.keyRisks
-      : report.leadConclusion.keyRisks;
+  final risks = report.keyRisks.isNotEmpty ? report.keyRisks : report.leadConclusion.keyRisks;
   Clipboard.setData(
     ClipboardData(
       text: risks.isEmpty ? 'No key risks returned.' : risks.join('\n'),
@@ -209,9 +201,7 @@ class _ReportError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final message = error is AppError
-        ? (error as AppError).message
-        : 'The report could not be generated.';
+    final message = error is AppError ? (error as AppError).message : 'The report could not be generated.';
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.screenPadding),
       children: [
@@ -335,6 +325,7 @@ class _RoleSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.micro),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -377,11 +368,8 @@ class _RoleSelector extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: AppTypography.caption1.copyWith(
-                        color: tab == selectedTab
-                            ? AppColors.textPrimary
-                            : AppColors.textSecondary,
-                        fontWeight:
-                            tab == selectedTab ? FontWeight.w800 : FontWeight.w500,
+                        color: tab == selectedTab ? AppColors.textPrimary : AppColors.textSecondary,
+                        fontWeight: tab == selectedTab ? FontWeight.w800 : FontWeight.w500,
                       ),
                     ),
                   ),
@@ -404,19 +392,14 @@ class _SelectedRoleView extends StatelessWidget {
   Widget build(BuildContext context) {
     final output = _outputForTab(report, tab);
     final isLead = tab == _ReportTab.lead;
-    final risks = isLead && report.keyRisks.isNotEmpty
-        ? report.keyRisks
-        : output.keyRisks;
+    final risks = isLead && report.keyRisks.isNotEmpty ? report.keyRisks : output.keyRisks;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _VerdictPanel(report: report, tab: tab, output: output),
         const SizedBox(height: AppSpacing.medium),
-        if (isLead)
-          _ExpertDeskSection(report: report, risks: risks)
-        else
-          _AnalystFocusPanel(tab: tab, output: output),
+        if (isLead) _ExpertDeskSection(report: report, risks: risks) else _AnalystFocusPanel(tab: tab, output: output),
         if (!isLead && risks.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.medium),
           _RiskWatchTray(risks: risks),
@@ -462,9 +445,7 @@ class _VerdictPanel extends StatelessWidget {
               const SizedBox(width: AppSpacing.small),
               Expanded(
                 child: Text(
-                  tab == _ReportTab.lead
-                      ? 'Lead Analyst Conclusion'
-                      : meta.title,
+                  tab == _ReportTab.lead ? 'Lead Analyst Conclusion' : meta.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTypography.headline,
@@ -478,9 +459,16 @@ class _VerdictPanel extends StatelessWidget {
           const SizedBox(height: AppSpacing.tiny),
           Text(
             summary,
-            maxLines: 2,
+            maxLines: 3,
             overflow: TextOverflow.ellipsis,
             style: AppTypography.subhead,
+          ),
+          const SizedBox(height: AppSpacing.tiny),
+          _ExpandableTextDisclosure(
+            title: 'Read full conclusion',
+            text: summary,
+            icon: CupertinoIcons.doc_text,
+            color: meta.color,
           ),
           const SizedBox(height: AppSpacing.small),
           _MetricBoard(
@@ -491,6 +479,86 @@ class _VerdictPanel extends StatelessWidget {
           const SizedBox(height: AppSpacing.small),
           _EvidenceSection(output: output, tab: tab),
         ],
+      ),
+    );
+  }
+}
+
+class _ExpandableTextDisclosure extends StatefulWidget {
+  const _ExpandableTextDisclosure({
+    required this.title,
+    required this.text,
+    required this.icon,
+    required this.color,
+  });
+
+  final String title;
+  final String text;
+  final IconData icon;
+  final Color color;
+
+  @override
+  State<_ExpandableTextDisclosure> createState() => _ExpandableTextDisclosureState();
+}
+
+class _ExpandableTextDisclosureState extends State<_ExpandableTextDisclosure> {
+  late final ExpansibleController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = ExpansibleController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: widget.color.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        border: Border.all(color: widget.color.withValues(alpha: 0.14)),
+      ),
+      child: CupertinoExpansionTile(
+        controller: _controller,
+        transitionMode: ExpansionTileTransitionMode.fade,
+        title: Row(
+          children: [
+            Icon(widget.icon, size: 17, color: widget.color),
+            const SizedBox(width: AppSpacing.tiny),
+            Expanded(
+              child: Text(
+                widget.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.caption1.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.small,
+            0,
+            AppSpacing.small,
+            AppSpacing.small,
+          ),
+          child: Text(
+            widget.text,
+            style: AppTypography.subhead.copyWith(
+              color: AppColors.textPrimary,
+              height: 1.42,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -612,29 +680,49 @@ class _RingMetric extends StatelessWidget {
         children: [
           Text(label, style: AppTypography.caption2),
           const SizedBox(height: AppSpacing.micro),
+          _MetricConfidenceRing(value: value, label: percent),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricConfidenceRing extends StatelessWidget {
+  const _MetricConfidenceRing({required this.value, required this.label});
+
+  final double value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 48.0;
+    const strokeWidth = 5.0;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CustomPaint(
+            size: const Size.square(size),
+            painter: _RingPainter(progress: value, strokeWidth: strokeWidth),
+          ),
           SizedBox(
-            width: 44,
-            height: 44,
-            child: Stack(
+            width: size - strokeWidth * 2.7,
+            height: size - strokeWidth * 2.7,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
               alignment: Alignment.center,
-              children: [
-                CustomPaint(
-                  size: const Size.square(44),
-                  painter: _RingPainter(progress: value, strokeWidth: 5),
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: AppTypography.caption1.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  height: 1,
                 ),
-                AnimatedNumberText(
-                  value: percent,
-                  style: AppTypography.callout.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                  stagger: const Duration(milliseconds: 10),
-                  duration: const Duration(milliseconds: 260),
-                  verticalOffset: 0.2,
-                  flipBegin: -0.08,
-                  scaleDown: true,
-                ),
-              ],
+              ),
             ),
           ),
         ],
@@ -709,11 +797,17 @@ class _EvidenceSection extends StatelessWidget {
           children: [
             Text('Key Evidence', style: AppTypography.headline),
             const Spacer(),
-            Text(
-              'View all',
-              style: AppTypography.caption1.copyWith(
-                color: AppColors.warning,
-                fontWeight: FontWeight.w800,
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              pressedOpacity: 0.62,
+              onPressed: () => _showEvidenceSheet(context, output, tab),
+              child: Text(
+                'View all',
+                style: AppTypography.caption1.copyWith(
+                  color: AppColors.warning,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ],
@@ -733,8 +827,71 @@ class _EvidenceSection extends StatelessWidget {
   }
 }
 
-class _EvidenceRow extends StatelessWidget {
-  const _EvidenceRow({
+void _showEvidenceSheet(
+  BuildContext context,
+  AnalystOutput output,
+  _ReportTab tab,
+) {
+  showCupertinoSheet<void>(
+    context: context,
+    useNestedNavigation: true,
+    showDragHandle: true,
+    builder: (sheetContext) {
+      return CupertinoPageScaffold(
+        backgroundColor: AppColors.canvas,
+        navigationBar: CupertinoNavigationBar(
+          backgroundColor: AppColors.canvas,
+          middle: Text('Key Evidence', style: AppTypography.headline),
+          trailing: const _SheetCloseButton(),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: ListView.separated(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenPadding,
+              AppSpacing.large,
+              AppSpacing.screenPadding,
+              44,
+            ),
+            itemCount: output.points.length,
+            separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.tiny),
+            itemBuilder: (_, index) {
+              return _EvidenceSheetRow(
+                index: index,
+                text: output.points[index],
+                tab: tab,
+                confidence: output.confidence,
+              );
+            },
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _SheetCloseButton extends StatelessWidget {
+  const _SheetCloseButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      minimumSize: Size.zero,
+      pressedOpacity: 0.62,
+      onPressed: () => CupertinoSheetRoute.popSheet(context),
+      child: const Icon(
+        CupertinoIcons.xmark,
+        color: AppColors.textSecondary,
+        size: 20,
+      ),
+    );
+  }
+}
+
+class _EvidenceSheetRow extends StatelessWidget {
+  const _EvidenceSheetRow({
     required this.index,
     required this.text,
     required this.tab,
@@ -751,38 +908,136 @@ class _EvidenceRow extends StatelessWidget {
     final color = _evidenceColor(tab, index);
     final strength = _evidenceStrength(confidence, index);
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.small,
-        vertical: 7,
+      padding: const EdgeInsets.all(AppSpacing.small),
+      decoration: BoxDecoration(
+        color: AppColors.canvasPure.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.64)),
       ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SignalIcon(icon: _evidenceIcon(tab, index), color: color),
+          const SizedBox(width: AppSpacing.small),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _strengthLabel(strength),
+                  style: AppTypography.caption1.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.micro),
+                Text(
+                  text,
+                  style: AppTypography.subhead.copyWith(
+                    color: AppColors.textPrimary,
+                    height: 1.32,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EvidenceRow extends StatefulWidget {
+  const _EvidenceRow({
+    required this.index,
+    required this.text,
+    required this.tab,
+    required this.confidence,
+  });
+
+  final int index;
+  final String text;
+  final _ReportTab tab;
+  final double? confidence;
+
+  @override
+  State<_EvidenceRow> createState() => _EvidenceRowState();
+}
+
+class _EvidenceRowState extends State<_EvidenceRow> {
+  late final ExpansibleController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = ExpansibleController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _evidenceColor(widget.tab, widget.index);
+    final strength = _evidenceStrength(widget.confidence, widget.index);
+    return Container(
       decoration: BoxDecoration(
         color: AppColors.canvasPure.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(AppRadii.lg),
         border: Border.all(color: AppColors.border.withValues(alpha: 0.58)),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          _SignalIcon(icon: _evidenceIcon(tab, index), color: color),
-          const SizedBox(width: AppSpacing.small),
-          Expanded(
-            child: Text(
-              text,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.footnote.copyWith(
-                color: AppColors.textPrimary,
-                height: 1.24,
+      child: CupertinoExpansionTile(
+        controller: _controller,
+        transitionMode: ExpansionTileTransitionMode.fade,
+        title: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _SignalIcon(icon: _evidenceIcon(widget.tab, widget.index), color: color),
+            const SizedBox(width: AppSpacing.small),
+            Expanded(
+              child: Text(
+                widget.text,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.footnote.copyWith(
+                  color: AppColors.textPrimary,
+                  height: 1.24,
+                ),
               ),
             ),
+            const SizedBox(width: AppSpacing.tiny),
+            _StrengthMeter(
+              label: _strengthLabel(strength),
+              value: strength,
+              color: color,
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.small,
+            0,
+            AppSpacing.small,
+            AppSpacing.small,
           ),
-          const SizedBox(width: AppSpacing.small),
-          _StrengthMeter(
-            label: _strengthLabel(strength),
-            value: strength,
-            color: color,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(height: 1, color: AppColors.divider),
+              const SizedBox(height: AppSpacing.small),
+              Text(
+                widget.text,
+                style: AppTypography.subhead.copyWith(
+                  color: AppColors.textPrimary,
+                  height: 1.38,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -824,9 +1079,7 @@ class _StrengthMeter extends StatelessWidget {
                     height: 5,
                     margin: EdgeInsets.only(right: index == 4 ? 0 : 3),
                     decoration: BoxDecoration(
-                      color: index < (value * 5).round()
-                          ? color
-                          : AppColors.surfaceMuted,
+                      color: index < (value * 5).round() ? color : AppColors.surfaceMuted,
                       borderRadius: BorderRadius.circular(AppRadii.pill),
                     ),
                   ),
@@ -854,15 +1107,11 @@ class _ExpertDeskSection extends StatelessWidget {
         children: [
           Text('Expert Desk', style: AppTypography.headline),
           const SizedBox(height: AppSpacing.small),
-          Row(
-            children: [
-              Expanded(child: _ExpertTile(output: report.bullCase)),
-              const SizedBox(width: AppSpacing.tiny),
-              Expanded(child: _ExpertTile(output: report.bearCase)),
-              const SizedBox(width: AppSpacing.tiny),
-              Expanded(child: _ExpertTile(output: report.centristCase)),
-            ],
-          ),
+          _ExpertTile(output: report.bullCase),
+          const SizedBox(height: AppSpacing.tiny),
+          _ExpertTile(output: report.bearCase),
+          const SizedBox(height: AppSpacing.tiny),
+          _ExpertTile(output: report.centristCase),
           if (risks.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.small),
             _RiskWatchTray(risks: risks, compact: true),
@@ -881,59 +1130,238 @@ class _ExpertTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final meta = _Meta.forRole(output);
-    return Container(
-      constraints: const BoxConstraints(minHeight: 124),
-      padding: const EdgeInsets.all(AppSpacing.tiny),
-      decoration: BoxDecoration(
-        color: meta.color.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        border: Border.all(color: meta.color.withValues(alpha: 0.14)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              _SignalIcon(icon: meta.icon, color: meta.color, size: 28),
-              const SizedBox(width: AppSpacing.tiny),
-              Expanded(
-                child: Text(
-                  meta.title,
-                  maxLines: 2,
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      minimumSize: Size.zero,
+      pressedOpacity: 0.72,
+      onPressed: () => _showExpertSheet(context, output),
+      child: Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(minHeight: 132),
+        padding: const EdgeInsets.all(AppSpacing.small),
+        decoration: BoxDecoration(
+          color: meta.color.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(AppRadii.xl),
+          border: Border.all(color: meta.color.withValues(alpha: 0.14)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SignalIcon(icon: meta.icon, color: meta.color, size: 34),
+                const SizedBox(width: AppSpacing.small),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        meta.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.headline.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.tiny),
+                      Wrap(
+                        spacing: AppSpacing.tiny,
+                        runSpacing: AppSpacing.tiny,
+                        children: [
+                          _SheetChip(
+                            label: _enumLabel(output.scenario.name),
+                            color: _scenarioColor(output.scenario),
+                          ),
+                          _SheetChip(
+                            label: '${_enumLabel(output.riskLevel.name)} risk',
+                            color: _riskColor(output.riskLevel),
+                          ),
+                          if (output.confidence != null)
+                            _SheetChip(
+                              label: '${(_confidenceValue(output.confidence!) * 100).round()}% confidence',
+                              color: meta.color,
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.small),
+            Text(
+              output.summary,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.footnote.copyWith(
+                color: AppColors.textSecondary,
+                height: 1.34,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.small),
+            Row(
+              children: [
+                Icon(CupertinoIcons.doc_text_search, color: meta.color, size: 15),
+                const SizedBox(width: AppSpacing.micro),
+                Expanded(
+                  child: Text(
+                    _expertEvidenceLabel(output.points.length),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption2.copyWith(
+                      color: AppColors.textTertiary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.tiny),
+                Text(
+                  'Read details',
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTypography.caption1.copyWith(
-                    color: AppColors.textPrimary,
+                    color: meta.color,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.tiny),
-          Row(
+                const SizedBox(width: AppSpacing.micro),
+                Icon(CupertinoIcons.chevron_right, color: meta.color, size: 12),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+void _showExpertSheet(BuildContext context, AnalystOutput output) {
+  final meta = _Meta.forRole(output);
+  final tab = _tabForRole(output.role);
+  showCupertinoSheet<void>(
+    context: context,
+    useNestedNavigation: true,
+    showDragHandle: true,
+    builder: (_) {
+      return CupertinoPageScaffold(
+        backgroundColor: AppColors.canvas,
+        navigationBar: CupertinoNavigationBar(
+          backgroundColor: AppColors.canvas,
+          middle: Text(meta.title, style: AppTypography.headline),
+          trailing: const _SheetCloseButton(),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: ListView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenPadding,
+              AppSpacing.large,
+              AppSpacing.screenPadding,
+              44,
+            ),
             children: [
-              Expanded(
+              _AnalystSheetHeader(output: output),
+              const SizedBox(height: AppSpacing.medium),
+              _SheetSection(
+                title: 'Conclusion',
                 child: Text(
-                  'Confidence',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.caption2.copyWith(
-                    color: AppColors.textSecondary,
+                  output.summary,
+                  style: AppTypography.subhead.copyWith(
+                    color: AppColors.textPrimary,
+                    height: 1.42,
                   ),
                 ),
               ),
-              if (output.confidence != null)
-                _MiniRing(value: _confidenceValue(output.confidence!), size: 34),
+              if (output.points.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.medium),
+                _SheetSection(
+                  title: 'Evidence',
+                  child: Column(
+                    children: [
+                      for (var index = 0; index < output.points.length; index++) ...[
+                        _EvidenceSheetRow(
+                          index: index,
+                          text: output.points[index],
+                          tab: tab,
+                          confidence: output.confidence,
+                        ),
+                        if (index != output.points.length - 1) const SizedBox(height: AppSpacing.tiny),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+              if (output.keyRisks.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.medium),
+                _SheetSection(
+                  title: 'Risk Watch',
+                  child: Column(
+                    children: [
+                      for (var index = 0; index < output.keyRisks.length; index++) ...[
+                        _RiskSheetRow(text: output.keyRisks[index]),
+                        if (index != output.keyRisks.length - 1) const SizedBox(height: AppSpacing.tiny),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
-          const SizedBox(height: AppSpacing.tiny),
-          Text(
-            output.summary,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: AppTypography.caption2.copyWith(
-              color: AppColors.textSecondary,
-              height: 1.28,
+        ),
+      );
+    },
+  );
+}
+
+class _AnalystSheetHeader extends StatelessWidget {
+  const _AnalystSheetHeader({required this.output});
+
+  final AnalystOutput output;
+
+  @override
+  Widget build(BuildContext context) {
+    final meta = _Meta.forRole(output);
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.medium),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadii.xxl),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.58)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _GlowIcon(icon: meta.icon, color: meta.color),
+          const SizedBox(width: AppSpacing.small),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(meta.title, style: AppTypography.headline),
+                const SizedBox(height: AppSpacing.tiny),
+                Wrap(
+                  spacing: AppSpacing.tiny,
+                  runSpacing: AppSpacing.tiny,
+                  children: [
+                    _SheetChip(
+                      label: _enumLabel(output.scenario.name),
+                      color: _scenarioColor(output.scenario),
+                    ),
+                    _SheetChip(
+                      label: '${_enumLabel(output.riskLevel.name)} risk',
+                      color: _riskColor(output.riskLevel),
+                    ),
+                    if (output.confidence != null)
+                      _SheetChip(
+                        label: '${(_confidenceValue(output.confidence!) * 100).round()}% confidence',
+                        color: AppColors.primaryPressed,
+                      ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
@@ -942,29 +1370,93 @@ class _ExpertTile extends StatelessWidget {
   }
 }
 
-class _MiniRing extends StatelessWidget {
-  const _MiniRing({required this.value, this.size = 40});
+class _SheetChip extends StatelessWidget {
+  const _SheetChip({required this.label, required this.color});
 
-  final double value;
-  final double size;
+  final String label;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Stack(
-        alignment: Alignment.center,
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.small,
+        vertical: AppSpacing.micro,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+      ),
+      child: Text(
+        label,
+        style: AppTypography.caption1.copyWith(
+          color: color,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetSection extends StatelessWidget {
+  const _SheetSection({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.medium),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadii.xxl),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.58)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CustomPaint(
-            size: Size.square(size),
-            painter: _RingPainter(progress: value, strokeWidth: 4),
+          Text(title, style: AppTypography.headline),
+          const SizedBox(height: AppSpacing.small),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _RiskSheetRow extends StatelessWidget {
+  const _RiskSheetRow({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.small),
+      decoration: BoxDecoration(
+        color: AppColors.primarySoft.withValues(alpha: 0.34),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.24)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            CupertinoIcons.exclamationmark_triangle,
+            color: AppColors.warning,
+            size: 18,
           ),
-          Text(
-            '${(value * 100).round()}%',
-            style: AppTypography.caption2.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w800,
+          const SizedBox(width: AppSpacing.small),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTypography.subhead.copyWith(
+                color: AppColors.textPrimary,
+                height: 1.36,
+              ),
             ),
           ),
         ],
@@ -1015,85 +1507,119 @@ class _RiskWatchTray extends StatelessWidget {
   Widget build(BuildContext context) {
     final visibleRisks = risks.take(3).toList(growable: false);
     final compactRisks = visibleRisks.take(2).toList(growable: false);
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(compact ? AppSpacing.small : AppSpacing.medium),
-      decoration: BoxDecoration(
-        color: AppColors.primarySoft.withValues(alpha: 0.42),
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        border: Border.all(color: AppColors.warning.withValues(alpha: 0.28)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SignalIcon(
-            icon: CupertinoIcons.exclamationmark_triangle,
-            color: AppColors.warning,
-            size: compact ? 32 : 38,
-          ),
-          const SizedBox(width: AppSpacing.small),
-          Expanded(
-            child: compact
-                ? Row(
-                    children: [
-                      SizedBox(
-                        width: 86,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Risk Watch', style: AppTypography.headline),
-                            const SizedBox(height: AppSpacing.micro),
-                            Text(
-                              'Key risks to monitor',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTypography.caption1,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.small),
-                      Expanded(
-                        child: Row(
-                          children: [
-                            for (var index = 0;
-                                index < compactRisks.length;
-                                index++) ...[
-                              Expanded(
-                                child: _RiskSnippet(text: compactRisks[index]),
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      minimumSize: Size.zero,
+      pressedOpacity: 0.72,
+      onPressed: () => _showRisksSheet(context, risks),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(compact ? AppSpacing.small : AppSpacing.medium),
+        decoration: BoxDecoration(
+          color: AppColors.primarySoft.withValues(alpha: 0.42),
+          borderRadius: BorderRadius.circular(AppRadii.xl),
+          border: Border.all(color: AppColors.warning.withValues(alpha: 0.28)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SignalIcon(
+              icon: CupertinoIcons.exclamationmark_triangle,
+              color: AppColors.warning,
+              size: compact ? 32 : 38,
+            ),
+            const SizedBox(width: AppSpacing.small),
+            Expanded(
+              child: compact
+                  ? Row(
+                      children: [
+                        SizedBox(
+                          width: 86,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Risk Watch', style: AppTypography.headline),
+                              const SizedBox(height: AppSpacing.micro),
+                              Text(
+                                'Tap to read all',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.caption1,
                               ),
-                              if (index != compactRisks.length - 1)
-                                const SizedBox(width: AppSpacing.tiny),
                             ],
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Risk Watch', style: AppTypography.headline),
-                      const SizedBox(height: AppSpacing.micro),
-                      Text(
-                        visibleRisks.join('  •  '),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.callout.copyWith(
-                          color: AppColors.textPrimary,
+                        const SizedBox(width: AppSpacing.small),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              for (var index = 0; index < compactRisks.length; index++) ...[
+                                Expanded(
+                                  child: _RiskSnippet(text: compactRisks[index]),
+                                ),
+                                if (index != compactRisks.length - 1) const SizedBox(width: AppSpacing.tiny),
+                              ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-          ),
-          if (!compact) ...[
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Risk Watch', style: AppTypography.headline),
+                        const SizedBox(height: AppSpacing.micro),
+                        Text(
+                          visibleRisks.join('  •  '),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.callout.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
             const SizedBox(width: AppSpacing.tiny),
             const Icon(CupertinoIcons.chevron_right, color: AppColors.warning),
           ],
-        ],
+        ),
       ),
     );
   }
+}
+
+void _showRisksSheet(BuildContext context, List<String> risks) {
+  showCupertinoSheet<void>(
+    context: context,
+    useNestedNavigation: true,
+    showDragHandle: true,
+    builder: (_) {
+      return CupertinoPageScaffold(
+        backgroundColor: AppColors.canvas,
+        navigationBar: CupertinoNavigationBar(
+          backgroundColor: AppColors.canvas,
+          middle: Text('Risk Watch', style: AppTypography.headline),
+          trailing: const _SheetCloseButton(),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: ListView.separated(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenPadding,
+              AppSpacing.large,
+              AppSpacing.screenPadding,
+              44,
+            ),
+            itemCount: risks.length,
+            separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.tiny),
+            itemBuilder: (context, index) => _RiskSheetRow(text: risks[index]),
+          ),
+        ),
+      );
+    },
+  );
 }
 
 class _RiskSnippet extends StatelessWidget {
@@ -1235,7 +1761,7 @@ class _ContextCell extends StatelessWidget {
       height: 64,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.micro,
-        vertical: AppSpacing.tiny,
+        vertical: AppSpacing.micro,
       ),
       decoration: BoxDecoration(
         color: AppColors.canvasPure.withValues(alpha: 0.64),
@@ -1456,8 +1982,7 @@ class _RingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _RingPainter oldDelegate) {
-    return oldDelegate.progress != progress ||
-        oldDelegate.strokeWidth != strokeWidth;
+    return oldDelegate.progress != progress || oldDelegate.strokeWidth != strokeWidth;
   }
 }
 
@@ -1507,6 +2032,20 @@ String _tabLabel(_ReportTab tab) {
   };
 }
 
+_ReportTab _tabForRole(AnalystRole role) {
+  return switch (role) {
+    AnalystRole.bull => _ReportTab.bull,
+    AnalystRole.bear => _ReportTab.bear,
+    AnalystRole.centrist => _ReportTab.centrist,
+    AnalystRole.lead => _ReportTab.lead,
+  };
+}
+
+String _expertEvidenceLabel(int count) {
+  if (count == 1) return '1 evidence point';
+  return '$count evidence points';
+}
+
 String _roleFocus(_ReportTab tab) {
   return switch (tab) {
     _ReportTab.lead =>
@@ -1533,28 +2072,60 @@ String _fallbackMessage(MarketAnalysisReport report) {
   return 'Fallback text was used for ${roles.join(', ')}. Check the AI logs for the exact reason.';
 }
 
-class _MarketHeroCard extends StatelessWidget {
+class _MarketHeroCard extends ConsumerStatefulWidget {
   const _MarketHeroCard({required this.report});
 
   final MarketAnalysisReport report;
 
   @override
+  ConsumerState<_MarketHeroCard> createState() => _MarketHeroCardState();
+}
+
+class _MarketHeroCardState extends ConsumerState<_MarketHeroCard> {
+  late String _selectedTimeframe;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTimeframe = widget.report.request.timeframe;
+  }
+
+  @override
+  void didUpdateWidget(covariant _MarketHeroCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.report.id != widget.report.id) {
+      _selectedTimeframe = widget.report.request.timeframe;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final price = report.asset.currentPrice == null
-        ? 'Unavailable'
-        : _formatPrice(report.asset.currentPrice!);
+    final report = widget.report;
+    final chart = ref.watch(
+      chartDataProvider(
+        ChartDataQuery(
+          symbol: report.asset.symbol,
+          timeframe: _selectedTimeframe,
+        ),
+      ),
+    );
+    final fetchedPoints = chart.valueOrNull;
+    final hasFetchedChart = fetchedPoints != null && fetchedPoints.length >= 2;
+    final chartPoints = hasFetchedChart ? fetchedPoints : report.request.chartPoints;
+    final isChartLoading = chart.isLoading && !hasFetchedChart;
+    final isChartFallback = chart.hasError && !hasFetchedChart;
+    final price = report.asset.currentPrice == null ? 'Unavailable' : _formatPrice(report.asset.currentPrice!);
     final change = _formatChangeLabel(
       change: report.asset.change,
       changePercent: report.asset.changePercent,
     );
-    final changeColor = (report.asset.changePercent ?? 0) >= 0
-        ? AppColors.tradingUp
-        : AppColors.tradingDown;
-    final range = _chartRange(report.request.chartPoints);
-    final latestVolume = _latestVolume(report.request.chartPoints);
+    final changeColor = (report.asset.changePercent ?? 0) >= 0 ? AppColors.tradingUp : AppColors.tradingDown;
+    final chartColor = _chartColor(chartPoints, report.asset.changePercent);
+    final range = _chartRange(chartPoints);
+    final latestVolume = _latestVolume(chartPoints);
 
     return _PremiumPanel(
-      padding: const EdgeInsets.all(AppSpacing.small),
+      padding: const EdgeInsets.all(AppSpacing.medium),
       child: Column(
         children: [
           Row(
@@ -1564,7 +2135,7 @@ class _MarketHeroCard extends StatelessWidget {
                 symbol: report.asset.symbol,
                 type: report.asset.type,
                 logoUrl: report.asset.logoUrl,
-                size: 48,
+                size: 56,
                 showChartFallback: true,
               ),
               const SizedBox(width: AppSpacing.small),
@@ -1622,30 +2193,45 @@ class _MarketHeroCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.tiny),
+          const SizedBox(height: AppSpacing.small),
           SizedBox(
-            height: 58,
+            height: 78,
             child: Stack(
               children: [
                 Positioned.fill(
-                  top: AppSpacing.small,
+                  top: AppSpacing.medium,
                   child: CustomPaint(
                     painter: _SparklinePainter(
-                      points: report.request.chartPoints,
-                      color: changeColor,
+                      points: chartPoints,
+                      color: chartColor,
                     ),
                     child: const SizedBox.expand(),
                   ),
                 ),
+                if (isChartLoading || isChartFallback)
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    child: _ChartSourceBadge(
+                      isLoading: isChartLoading,
+                      isFallback: isChartFallback,
+                    ),
+                  ),
                 Positioned(
                   top: 0,
                   right: 0,
-                  child: _TimeframeStrip(selected: report.request.timeframe),
+                  child: _TimeframeStrip(
+                    selected: _selectedTimeframe,
+                    onChanged: (timeframe) {
+                      if (timeframe == _selectedTimeframe) return;
+                      setState(() => _selectedTimeframe = timeframe);
+                    },
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.micro),
+          const SizedBox(height: AppSpacing.tiny),
           Row(
             children: [
               Expanded(
@@ -1682,10 +2268,55 @@ class _MarketHeroCard extends StatelessWidget {
   }
 }
 
+class _ChartSourceBadge extends StatelessWidget {
+  const _ChartSourceBadge({required this.isLoading, required this.isFallback});
+
+  final bool isLoading;
+  final bool isFallback;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isLoading && !isFallback) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.tiny,
+        vertical: 3,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.58)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isLoading) ...[
+            const MotionLoadingIndicator(radius: 5),
+            const SizedBox(width: AppSpacing.micro),
+          ] else
+            const Icon(
+              CupertinoIcons.exclamationmark_triangle,
+              size: 10,
+              color: AppColors.warning,
+            ),
+          Text(
+            isLoading ? 'Loading chart' : 'Report snapshot',
+            style: AppTypography.caption2.copyWith(
+              color: AppColors.textTertiary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TimeframeStrip extends StatelessWidget {
-  const _TimeframeStrip({required this.selected});
+  const _TimeframeStrip({required this.selected, required this.onChanged});
 
   final String selected;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -1696,22 +2327,30 @@ class _TimeframeStrip extends StatelessWidget {
         for (final label in labels)
           Padding(
             padding: const EdgeInsets.only(left: AppSpacing.micro),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.tiny,
-                vertical: 3,
-              ),
-              decoration: BoxDecoration(
-                color: label == selected ? AppColors.primary : AppColors.surface,
-                borderRadius: BorderRadius.circular(AppRadii.pill),
-              ),
-              child: Text(
-                label,
-                style: AppTypography.caption2.copyWith(
-                  color: label == selected
-                      ? AppColors.textPrimary
-                      : AppColors.textTertiary,
-                  fontWeight: label == selected ? FontWeight.w800 : FontWeight.w500,
+            child: CupertinoButton(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              pressedOpacity: 0.72,
+              onPressed: () => onChanged(label),
+              child: AnimatedContainer(
+                duration: AppMotion.fast,
+                curve: AppMotion.curve,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.tiny,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: label == selected ? AppColors.primary : AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppRadii.pill),
+                ),
+                child: AnimatedDefaultTextStyle(
+                  duration: AppMotion.fast,
+                  curve: AppMotion.curve,
+                  style: AppTypography.caption2.copyWith(
+                    color: label == selected ? AppColors.textPrimary : AppColors.textTertiary,
+                    fontWeight: label == selected ? FontWeight.w800 : FontWeight.w500,
+                  ),
+                  child: Text(label),
                 ),
               ),
             ),
@@ -1821,27 +2460,42 @@ class _SparklinePainter extends CustomPainter {
     final minValue = values.reduce(math.min);
     final maxValue = values.reduce(math.max);
     final range = math.max(maxValue - minValue, 0.01);
-    final path = Path();
-    final fillPath = Path();
+    final topPadding = math.min(8.0, size.height * 0.18);
+    final bottomPadding = math.min(6.0, size.height * 0.14);
+    final chartHeight = math.max(size.height - topPadding - bottomPadding, 1.0);
+    final offsets = <Offset>[];
 
     for (var index = 0; index < values.length; index++) {
-      final x = values.length == 1
-          ? 0.0
-          : size.width * index / (values.length - 1);
-      final y = size.height - ((values[index] - minValue) / range) * size.height;
-      final point = Offset(x, y.clamp(4.0, size.height - 4));
+      final x = values.length == 1 ? 0.0 : size.width * index / (values.length - 1);
+      final normalized = (values[index] - minValue) / range;
+      final y = topPadding + (1 - normalized) * chartHeight;
+      offsets.add(Offset(x, y.clamp(topPadding, size.height - bottomPadding)));
+    }
+
+    final path = Path();
+
+    for (var index = 0; index < offsets.length; index++) {
+      final point = offsets[index];
       if (index == 0) {
         path.moveTo(point.dx, point.dy);
-        fillPath.moveTo(point.dx, size.height);
-        fillPath.lineTo(point.dx, point.dy);
       } else {
-        path.lineTo(point.dx, point.dy);
-        fillPath.lineTo(point.dx, point.dy);
+        final previous = offsets[index - 1];
+        final controlX = (previous.dx + point.dx) / 2;
+        path.cubicTo(
+          controlX,
+          previous.dy,
+          controlX,
+          point.dy,
+          point.dx,
+          point.dy,
+        );
       }
     }
 
+    final fillPath = Path.from(path);
     fillPath
       ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
       ..close();
 
     final fillPaint = Paint()
@@ -1896,25 +2550,25 @@ class _Meta {
   static _Meta forRole(AnalystOutput output) {
     return switch (output.role) {
       AnalystRole.bull => const _Meta(
-          title: 'Bull Expert',
-          icon: CupertinoIcons.arrow_up_right,
-          color: AppColors.tradingUp,
-        ),
+        title: 'Bull Expert',
+        icon: CupertinoIcons.arrow_up_right,
+        color: AppColors.tradingUp,
+      ),
       AnalystRole.bear => const _Meta(
-          title: 'Bear Expert',
-          icon: CupertinoIcons.arrow_down_right,
-          color: AppColors.tradingDown,
-        ),
+        title: 'Bear Expert',
+        icon: CupertinoIcons.arrow_down_right,
+        color: AppColors.tradingDown,
+      ),
       AnalystRole.centrist => const _Meta(
-          title: 'Centrist Expert',
-          icon: CupertinoIcons.arrow_left_right,
-          color: AppColors.info,
-        ),
+        title: 'Centrist Expert',
+        icon: CupertinoIcons.arrow_left_right,
+        color: AppColors.info,
+      ),
       AnalystRole.lead => const _Meta(
-          title: 'Lead Analyst',
-          icon: CupertinoIcons.checkmark_seal,
-          color: AppColors.primaryPressed,
-        ),
+        title: 'Lead Analyst',
+        icon: CupertinoIcons.checkmark_seal,
+        color: AppColors.primaryPressed,
+      ),
     };
   }
 }
@@ -2021,6 +2675,17 @@ String _strengthLabel(double value) {
 double _confidenceValue(double confidence) {
   final normalized = confidence > 1 ? confidence / 100 : confidence;
   return normalized.clamp(0, 1).toDouble();
+}
+
+Color _chartColor(List<ChartPointModel> points, double? fallbackChangePercent) {
+  if (points.length >= 2) {
+    return points.last.close >= points.first.close
+        ? AppColors.tradingUp
+        : AppColors.tradingDown;
+  }
+  return (fallbackChangePercent ?? 0) >= 0
+      ? AppColors.tradingUp
+      : AppColors.tradingDown;
 }
 
 _ChartRange _chartRange(List<ChartPointModel> points) {

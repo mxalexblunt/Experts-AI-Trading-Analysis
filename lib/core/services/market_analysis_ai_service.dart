@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../app_disclaimers.dart';
 import '../../models/models.dart';
 import 'app_error.dart';
 import 'app_log.dart';
@@ -74,6 +75,7 @@ Rules:
 - Do not give direct buy, sell, short, enter, or exit instructions.
 - Be cautious and explicit about uncertainty.
 - Call out where experts agree, where they conflict, and which risks matter most.
+- The disclaimer must say Experts is not affiliated with Finnhub, Twelve Data, or Google Gemini and uses third-party APIs for information and educational analysis.
 - Return valid JSON only.
 
 Expected JSON:
@@ -177,7 +179,7 @@ ${jsonEncode(centristCase.toJson())}
         finalSummary: leadConclusion.summary,
         scenario: leadConclusion.scenario,
         keyRisks: leadConclusion.keyRisks,
-        disclaimer: leadConclusion.disclaimer ?? defaultReportDisclaimer,
+        disclaimer: _reportDisclaimer(leadConclusion.disclaimer),
         createdAt: DateTime.now(),
         isFallback: isFallback,
       );
@@ -298,6 +300,7 @@ Rules:
 - Do not give direct buy, sell, short, enter, or exit instructions.
 - Do not provide price targets or guarantees.
 - Admit uncertainty when market data, chart data, or news is incomplete.
+- The disclaimer must say Experts is not affiliated with Finnhub, Twelve Data, or Google Gemini and uses third-party APIs for information and educational analysis.
 - Return valid JSON only.
 
 Expected JSON:
@@ -562,6 +565,17 @@ ${_requestContext(request)}
     if (text == null || text.isEmpty) return null;
     return text.replaceAll(RegExp(r'\bmy name is [^,.]+', caseSensitive: false),
         'my name is \$USERNAME');
+  }
+
+  String _reportDisclaimer(String? value) {
+    final text = value?.trim();
+    if (text == null || text.isEmpty) return defaultReportDisclaimer;
+    if (text.contains('not affiliated') &&
+        text.contains('Finnhub') &&
+        text.contains('Twelve Data')) {
+      return text;
+    }
+    return '$text ${AppDisclaimers.thirdPartyApiNotice}';
   }
 
   MarketAnalysisReport _fallbackReport(

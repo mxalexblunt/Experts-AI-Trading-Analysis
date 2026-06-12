@@ -124,7 +124,7 @@ void setUpWithAiConsent({bool consent = true}) {
   SharedPreferences.setMockInitialValues({
     'experts.settings': jsonEncode({
       'aiConsentGiven': consent,
-      'educationalDisclaimerAccepted': false,
+      'educationalDisclaimerAccepted': true,
       'dataSourceAttributionAccepted': false,
     }),
   });

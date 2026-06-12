@@ -5,6 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/services/app_error.dart';
 import '../../../core/theme/app_colors.dart';
@@ -119,7 +120,7 @@ class _AssetDetailsScreenState extends ConsumerState<AssetDetailsScreen> {
         trailing: AppIconButton(
           size: 40,
           iconSize: 20,
-          icon: isSaved ? CupertinoIcons.star_fill : CupertinoIcons.star,
+          icon: isSaved ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
           foregroundColor: isSaved ? AppColors.primaryPressed : AppColors.textPrimary,
           onPressed: () => ref.read(watchlistProvider.notifier).toggleAsset(asset),
         ),
@@ -205,22 +206,13 @@ class _AssetDetailsScreenState extends ConsumerState<AssetDetailsScreen> {
   Future<void> _analyze(AssetModel asset) async {
     if (_isAnalyzing) return;
 
-    _startAnalysisButtonLoop();
     try {
-      final settings = ref.read(settingsProvider);
-      if (settings.aiConsentGiven == null) {
-        final agreed = await showAiConsentDialog(context);
-        await ref.read(settingsProvider.notifier).setAiConsent(agreed);
-        if (!agreed) return;
-      } else if (settings.aiConsentGiven == false) {
-        final openSettings = await showAiConsentBlockedDialog(context);
-        if (openSettings && mounted) {
-          Navigator.of(context, rootNavigator: true).pop();
-          widget.onOpenSettings?.call();
-        }
-        return;
-      }
+      if (!await _ensureAnalysisDisclaimerAccepted()) return;
+      if (!context.mounted) return;
+      if (!await _ensureAiConsent()) return;
+      if (!context.mounted) return;
 
+      _startAnalysisButtonLoop();
       final draft = ref.read(analysisDraftProvider) ?? AnalysisRequest(asset: asset);
       final request = draft.copyWith(asset: asset, timeframe: _timeframe);
       await ref.read(marketAnalysisProvider.notifier).generate(request);
@@ -235,6 +227,39 @@ class _AssetDetailsScreenState extends ConsumerState<AssetDetailsScreen> {
     } finally {
       _stopAnalysisButtonLoop();
     }
+  }
+
+  Future<bool> _ensureAnalysisDisclaimerAccepted() async {
+    final settings = ref.read(settingsProvider);
+    if (settings.educationalDisclaimerAccepted) return true;
+
+    final accepted = await showAiAnalysisDisclaimerDialog(context);
+    if (!context.mounted || !accepted) return false;
+    await ref
+        .read(settingsProvider.notifier)
+        .setEducationalDisclaimerAccepted(true);
+    return context.mounted;
+  }
+
+  Future<bool> _ensureAiConsent() async {
+    final settings = ref.read(settingsProvider);
+    if (settings.aiConsentGiven == true) return true;
+
+    if (settings.aiConsentGiven == null) {
+      final agreed = await showAiConsentDialog(context);
+      if (!context.mounted) return false;
+      await ref.read(settingsProvider.notifier).setAiConsent(agreed);
+      return agreed;
+    }
+
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    final openSettings = await showAiConsentBlockedDialog(context);
+    if (!mounted) return false;
+    if (openSettings) {
+      rootNavigator.pop();
+      widget.onOpenSettings?.call();
+    }
+    return false;
   }
 
   void _startAnalysisButtonLoop() {
@@ -939,20 +964,16 @@ class _NewsSection extends StatelessWidget {
                 message: 'The AI report can still use price and chart context.',
               );
             }
+            final visibleItems = items.take(3).toList(growable: false);
             return AppCard(
               style: AppCardStyle.inset,
               child: MotionStaggeredColumn(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  for (final item in items.take(3)) ...[
-                    Text(item.headline, style: AppTypography.headline),
-                    const SizedBox(height: AppSpacing.micro),
-                    Text(
-                      item.source ?? 'Market source',
-                      style: AppTypography.footnote,
-                    ),
-                    if (item != items.take(3).last)
+                  for (var index = 0; index < visibleItems.length; index++) ...[
+                    _NewsItemRow(item: visibleItems[index]),
+                    if (index != visibleItems.length - 1)
                       const SizedBox(height: AppSpacing.medium),
                   ],
                 ],
@@ -962,5 +983,92 @@ class _NewsSection extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _NewsItemRow extends StatelessWidget {
+  const _NewsItemRow({required this.item});
+
+  final NewsItemModel item;
+
+  @override
+  Widget build(BuildContext context) {
+    final uri = _newsUri(item.url);
+    final content = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(item.headline, style: AppTypography.headline),
+              const SizedBox(height: AppSpacing.micro),
+              Text(
+                item.source ?? 'Market source',
+                style: AppTypography.footnote,
+              ),
+            ],
+          ),
+        ),
+        if (uri != null) ...[
+          const SizedBox(width: AppSpacing.small),
+          const Icon(
+            CupertinoIcons.arrow_up_right,
+            color: AppColors.textTertiary,
+            size: 17,
+          ),
+        ],
+      ],
+    );
+
+    if (uri == null) return content;
+
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      minimumSize: Size.zero,
+      pressedOpacity: 0.72,
+      alignment: Alignment.centerLeft,
+      onPressed: () => _confirmOpenNewsUrl(context, uri),
+      child: content,
+    );
+  }
+
+  Uri? _newsUri(String? value) {
+    final uri = Uri.tryParse(value?.trim() ?? '');
+    if (uri == null || !uri.hasScheme) return null;
+    if (uri.scheme != 'http' && uri.scheme != 'https') return null;
+    return uri;
+  }
+
+  Future<void> _confirmOpenNewsUrl(BuildContext context, Uri uri) async {
+    final shouldOpen = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return CupertinoAlertDialog(
+          title: const Text('Open external link?'),
+          content: Text(
+            'Do you want to open ${uri.toString()} in an external browser?',
+          ),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldOpen != true) return;
+    await _openNewsUrl(uri);
+  }
+
+  Future<void> _openNewsUrl(Uri uri) async {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }

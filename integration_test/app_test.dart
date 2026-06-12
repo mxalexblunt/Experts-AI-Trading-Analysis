@@ -102,9 +102,9 @@ void main() {
       await tester.tap(find.text('AAPL').first);
       await settle(tester);
       await waitForText(tester, 'Apple Inc');
-      await tester.tap(find.byIcon(CupertinoIcons.star).first);
+      await tester.tap(find.byIcon(CupertinoIcons.heart).first);
       await settle(tester);
-      expect(find.byIcon(CupertinoIcons.star_fill), findsWidgets);
+      expect(find.byIcon(CupertinoIcons.heart_fill), findsWidgets);
 
       await tester.pageBack();
       await settle(tester);
@@ -161,6 +161,9 @@ void main() {
 
       await tester.tap(find.text('Analyze'));
       await settle(tester);
+      expect(find.text('AI Analysis Disclaimer'), findsOneWidget);
+      await tester.tap(find.text('Continue'));
+      await settle(tester);
       expect(find.text('AI Data Usage'), findsOneWidget);
       await screenshot('11_ai_consent_dialog');
 
@@ -200,6 +203,10 @@ void main() {
 
       await tester.tap(find.text('Analyze'));
       await settle(tester);
+      if (find.text('AI Analysis Disclaimer').evaluate().isNotEmpty) {
+        await tester.tap(find.text('Continue'));
+        await settle(tester);
+      }
       if (find.text('AI Data Usage').evaluate().isNotEmpty) {
         await tester.tap(find.text('I Agree'));
         await settle(tester);
