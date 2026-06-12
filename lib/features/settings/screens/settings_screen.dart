@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,6 +10,7 @@ import '../../../core/widgets/app_divider.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_section_header.dart';
 import '../../../doc_viewer.dart';
+import '../../report/screens/ai_report_screen.dart';
 import '../../../providers/providers.dart';
 import '../widgets/ai_consent_dialog.dart';
 
@@ -83,6 +85,19 @@ class SettingsScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: AppSpacing.xlarge),
+                  if (kDebugMode) ...[
+                    const AppSectionHeader(title: 'Debug'),
+                    const SizedBox(height: AppSpacing.small),
+                    _SettingsGroup(
+                      children: [
+                        _DocumentRow(
+                          title: 'Show Test AI Report',
+                          onPressed: () => _showTestAiReport(context, ref),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xlarge),
+                  ],
                   const AppSectionHeader(title: 'Legal'),
                   const SizedBox(height: AppSpacing.small),
                   _SettingsGroup(
@@ -148,6 +163,17 @@ class SettingsScreen extends ConsumerWidget {
     if (revoke) {
       await ref.read(settingsProvider.notifier).setAiConsent(false);
     }
+  }
+
+  void _showTestAiReport(BuildContext context, WidgetRef ref) {
+    final report = ref.read(marketAnalysisProvider.notifier).showDebugReport();
+    ref.read(analysisDraftProvider.notifier).startFromAsset(report.asset);
+    Navigator.of(context, rootNavigator: true).push(
+      CupertinoPageRoute<void>(
+        settings: const RouteSettings(name: 'AiReportScreen.debug'),
+        builder: (_) => AiReportScreen(asset: report.asset),
+      ),
+    );
   }
 }
 

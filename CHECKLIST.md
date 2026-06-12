@@ -3,6 +3,7 @@
 
 
 // https://expertsanalysisapp-default-rtdb.firebaseio.com/
+// https://github.com/mxalexblunt/Experts-AI-Trading-Analysis.git
 
 <!-- ссылки  -->
 https://expertsanalysisapp.web.app/privacy
@@ -25,4 +26,3 @@ https://expertsanalysisapp.web.app/support
 <!-- ПРОВЕРИТЬ ТУДУШКИ -->
 УДАЛИТЬ MD и CLAUDE ФАЙЛЫ 
 удалить чеклист 
-
