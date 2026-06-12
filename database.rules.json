@@ -1,0 +1,43 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "support_requests": {
+      "$requestId": {
+        ".read": false,
+        ".write": "!data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['topic', 'message', 'contact', 'source', 'pageUrl', 'referrer', 'userAgent', 'status', 'createdAt'])",
+        "topic": {
+          ".validate": "newData.isString() && (newData.val() == 'app_issue' || newData.val() == 'market_data' || newData.val() == 'ai_analysis' || newData.val() == 'privacy' || newData.val() == 'other')"
+        },
+        "message": {
+          ".validate": "newData.isString() && newData.val().length >= 10 && newData.val().length <= 4000"
+        },
+        "contact": {
+          ".validate": "newData.isString() && newData.val().length <= 200"
+        },
+        "source": {
+          ".validate": "newData.isString() && newData.val() == 'experts_hosting_support'"
+        },
+        "pageUrl": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 500"
+        },
+        "referrer": {
+          ".validate": "newData.isString() && newData.val().length <= 500"
+        },
+        "userAgent": {
+          ".validate": "newData.isString() && newData.val().length <= 512"
+        },
+        "status": {
+          ".validate": "newData.isString() && newData.val() == 'new'"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}

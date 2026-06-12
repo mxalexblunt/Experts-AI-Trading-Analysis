@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Support - Experts</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+  </head>
+  <body>
+    <main class="page">
+      <section class="shell">
+        <nav class="topnav" aria-label="Main navigation">
+          <a class="brand" href="/">Experts</a>
+          <div class="links">
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
+            <a href="/support">Support</a>
+          </div>
+        </nav>
+        <h1>Support Form</h1>
+        <p class="updated">Last updated: June 11, 2026</p>
+        <p>
+          Send an app issue, privacy question, market data problem, AI analysis
+          concern, or other feedback. Submissions are stored for later review.
+          Please do not include sensitive personal information.
+        </p>
+        <p class="notice">
+          If you want a reply, include a contact method in the optional contact
+          field. A reply is not guaranteed.
+        </p>
+
+        <form id="support-form">
+          <label for="topic">Topic</label>
+          <select id="topic" name="topic" required>
+            <option value="app_issue">App issue</option>
+            <option value="market_data">Market data</option>
+            <option value="ai_analysis">AI analysis</option>
+            <option value="privacy">Privacy</option>
+            <option value="other">Other</option>
+          </select>
+
+          <label for="message">Message</label>
+          <textarea
+            id="message"
+            name="message"
+            minlength="10"
+            maxlength="4000"
+            required
+            placeholder="Describe what happened or what you need help with."
+          ></textarea>
+
+          <label for="contact">Optional contact</label>
+          <input
+            id="contact"
+            name="contact"
+            maxlength="200"
+            autocomplete="email"
+            placeholder="Email or another contact method, optional"
+          >
+
+          <button id="submit-button" type="submit">Submit Support Request</button>
+          <p id="form-status" class="status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+    </main>
+
+    <script src="/__/firebase/10.12.5/firebase-app-compat.js"></script>
+    <script src="/__/firebase/10.12.5/firebase-database-compat.js"></script>
+    <script src="/__/firebase/init.js"></script>
+    <script src="/assets/support.js"></script>
+  </body>
+</html>
