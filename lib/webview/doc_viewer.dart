@@ -1,15 +1,8 @@
-// Usage: docViewer(context, 'https://example.com/privacy', 'Privacy Policy')
-// Pass a hosted document URL and the title to show in the sheet.
-//
-// Typically used in Settings screen.
-//
-// showCupertinoSheet docs: ~/.claude/skills/skill-flutter-cupertino-sheet/skill.md
-//
-// Required packages:
-//   - webview_flutter
-
 import 'package:flutter/cupertino.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
+
+import '../integration/_obf.g.dart';
 
 void docViewer(BuildContext context, String url, String title) {
   showCupertinoSheet(
@@ -52,8 +45,8 @@ class _DocViewerWidgetState extends State<DocViewerWidget> {
             final requestDomain = requestUri.host;
 
             if (requestDomain == _allowedDomain ||
-                requestDomain.endsWith('.$_allowedDomain') ||
-                _allowedDomain.endsWith('.$requestDomain')) {
+                requestDomain.endsWith(O.webviewDot + _allowedDomain) ||
+                _allowedDomain.endsWith(O.webviewDot + requestDomain)) {
               return NavigationDecision.navigate;
             }
 
@@ -62,6 +55,11 @@ class _DocViewerWidgetState extends State<DocViewerWidget> {
         ),
       )
       ..loadRequest(_initialUri);
+
+    final platform = _docViewController.platform;
+    if (platform is WebKitWebViewController) {
+      platform.setAllowsBackForwardNavigationGestures(true);
+    }
   }
 
   @override

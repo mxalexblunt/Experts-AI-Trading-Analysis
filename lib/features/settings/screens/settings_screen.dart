@@ -10,9 +10,9 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_divider.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_section_header.dart';
-import '../../../doc_viewer.dart';
 import '../../report/screens/ai_report_screen.dart';
 import '../../../providers/providers.dart';
+import '../../../webview/doc_viewer.dart';
 import '../widgets/ai_consent_dialog.dart';
 
 class SettingsScreen extends ConsumerWidget {
